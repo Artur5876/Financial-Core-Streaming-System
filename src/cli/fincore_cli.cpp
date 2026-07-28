@@ -155,16 +155,21 @@ int FinCoreCli::run() {
 }
 
 void FinCoreCli::handle_line(const std::string& line) {
-    auto args = tokenize(line);
+    auto args = tokenize(line); //std::vector<std::string>
     if (args.empty()) {
         return;
     }
 
+    //converting to upper case (user input)
     std::string command = normalize_symbol(std::move(args.front()));
+
+    // Converting all characters to lower case in case if there are any uppercase characters
     std::transform(command.begin(), command.end(), command.begin(),
                    [](unsigned char ch) {
                        return static_cast<char>(std::tolower(ch));
                    });
+
+    // Deleting the first element from the vector(first word)
     args.erase(args.begin());
 
     if (command == "help") {
@@ -175,7 +180,7 @@ void FinCoreCli::handle_line(const std::string& line) {
         handle_fetch(args);
     } else if (command == "book") {
         handle_book(args);
-    } else if (command == "lookup") {
+    } else if (command == "lookup") { //benchmark test
         handle_lookup(args);
     } else if (command == "watch") {
         handle_watch(args);
@@ -251,16 +256,18 @@ void FinCoreCli::handle_fetch(const Args& args) {
         throw std::invalid_argument("usage: fetch <SYMBOL|all>");
     }
 
+    // Taking second attribute(word) from user command
     std::string target = normalize_symbol(args.front());
     if (target == "ALL") {
         fetch_all(true, true);
         return;
     }
 
-    fetch_symbol(target, true, true);
+    fetch_symbol(target, true, true);//symbol and metrics data is included
 }
 
 void FinCoreCli::handle_book(const Args& args) const {
+
     if (args.size() != 1) {
         throw std::invalid_argument("usage: book <SYMBOL>");
     }
@@ -452,7 +459,10 @@ void FinCoreCli::handle_stats(const Args& args) {
 bool FinCoreCli::fetch_symbol(const std::string& raw_symbol,
                               bool print_data,
                               bool print_metrics) {
+    //second argument from user command
     const std::string symbol = normalize_symbol(raw_symbol);
+
+    //Check if we have quote configured in out orderbook
     if (!is_configured(symbol)) {
         throw std::invalid_argument("symbol is not configured: " + symbol);
     }
@@ -465,17 +475,21 @@ bool FinCoreCli::fetch_symbol(const std::string& raw_symbol,
 
     try {
         const auto redis_read_started = Clock::now();
-        auto maybe_quote = services_.get_cached_quote(symbol);
+        auto maybe_quote = services_.get_cached_quote(symbol);// Redis retrieval
         metrics.redis_read_us = elapsed_us(redis_read_started);
+        //if redis cache hit
         metrics.redis_cache_hit = maybe_quote.has_value();
 
+        //if not in caches than we will implement API request
         if (!maybe_quote) {
             const auto api_started = Clock::now();
             maybe_quote = services_.get_quote(symbol);
-            metrics.api_us = elapsed_us(api_started);
+            auto started = api_started;
+            metrics.api_us = elapsed_us(started);
             metrics.api_cached = services_.last_was_cached();
         }
 
+        // If argument wasnt found in Redis, then we will see the statistic of look up
         if (!maybe_quote) {
             metrics.total_us = elapsed_us(total_started);
             metrics.process = process_delta(process_before, read_process_snapshot());
@@ -499,6 +513,8 @@ bool FinCoreCli::fetch_symbol(const std::string& raw_symbol,
         }
 
         auto& book = books_.at(symbol);
+
+        //the time_point of book update
         const auto book_started = Clock::now();
         populate_book_from_quote(book, quote);
         metrics.book_build_us = elapsed_us(book_started);
@@ -555,6 +571,7 @@ bool FinCoreCli::fetch_symbol(const std::string& raw_symbol,
 }
 
 void FinCoreCli::fetch_all(bool print_data, bool print_metrics) {
+    //redis cache check
     if (!services_.redis_is_connected()) {
         out_ << "[WARN] Redis is disconnected; writes may fail.\n";
     }
@@ -571,10 +588,12 @@ void FinCoreCli::fetch_all(bool print_data, bool print_metrics) {
          << " total=" << symbols_.size() << '\n';
 }
 
+// If symbol contains in orderbook
 bool FinCoreCli::is_configured(const std::string& symbol) const {
     return books_.find(symbol) != books_.end();
 }
 
+// Converting the input line into vector of string type in order to read users sentence word by word
 FinCoreCli::Args FinCoreCli::tokenize(const std::string& line) {
     std::istringstream input{line};
     Args args;

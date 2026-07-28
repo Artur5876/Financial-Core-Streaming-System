@@ -82,6 +82,7 @@ private:
     [[nodiscard]] bool is_configured(
         const std::string& symbol) const;
 
+    //method that will take string and return std::vector<std::string>
     [[nodiscard]] static Args tokenize(
         const std::string& line);
 
