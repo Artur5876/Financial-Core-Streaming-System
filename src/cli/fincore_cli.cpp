@@ -81,6 +81,10 @@ CliServices make_cli_services(AlphaVantageClient& av_client, RedisClient& redis)
         return redis.is_connected();
     };
 
+    services.get_cached_quote = [&redis](const Symbol& symbol) {
+        return redis.get_quote(symbol);
+    };
+
     services.store_quote = [&redis] (const Symbol& symbol,
                                     const Quote& quote)
     {
@@ -460,10 +464,17 @@ bool FinCoreCli::fetch_symbol(const std::string& raw_symbol,
     const auto total_started = Clock::now();
 
     try {
-        const auto api_started = Clock::now();
-        auto maybe_quote = services_.get_quote(symbol);
-        metrics.api_us = elapsed_us(api_started);
-        metrics.api_cached = services_.last_was_cached();
+        const auto redis_read_started = Clock::now();
+        auto maybe_quote = services_.get_cached_quote(symbol);
+        metrics.redis_read_us = elapsed_us(redis_read_started);
+        metrics.redis_cache_hit = maybe_quote.has_value();
+
+        if (!maybe_quote) {
+            const auto api_started = Clock::now();
+            maybe_quote = services_.get_quote(symbol);
+            metrics.api_us = elapsed_us(api_started);
+            metrics.api_cached = services_.last_was_cached();
+        }
 
         if (!maybe_quote) {
             metrics.total_us = elapsed_us(total_started);
@@ -478,9 +489,14 @@ bool FinCoreCli::fetch_symbol(const std::string& raw_symbol,
         }
         const Quote& quote = *maybe_quote;
 
-        const auto redis_quote_started = Clock::now();
-        metrics.redis_quote_stored = services_.store_quote(symbol, quote);
-        metrics.redis_quote_us = elapsed_us(redis_quote_started);
+        if (metrics.redis_cache_hit) {
+            // Do not refresh the TTL or duplicate history on every cache read.
+            metrics.redis_quote_stored = true;
+        } else {
+            const auto redis_quote_started = Clock::now();
+            metrics.redis_quote_stored = services_.store_quote(symbol, quote);
+            metrics.redis_quote_us = elapsed_us(redis_quote_started);
+        }
 
         auto& book = books_.at(symbol);
         const auto book_started = Clock::now();
@@ -508,8 +524,15 @@ bool FinCoreCli::fetch_symbol(const std::string& raw_symbol,
         stats_.record(metrics);
 
         out_ << "[OK] " << symbol
-             << (metrics.api_cached ? " [API client cache]" : " [external API]")
-             << " quote_redis=" << (metrics.redis_quote_stored ? "ok" : "failed")
+             << (metrics.redis_cache_hit
+                    ? " [Redis cache]"
+                    : (metrics.api_cached
+                        ? " [API client cache]"
+                        : " [external API]"))
+             << " quote_redis="
+             << (metrics.redis_cache_hit
+                    ? "cache-hit"
+                    : (metrics.redis_quote_stored ? "ok" : "failed"))
              << " book_redis=" << (metrics.redis_book_stored ? "ok" : "failed")
              << '\n';
 
@@ -596,4 +619,3 @@ std::size_t FinCoreCli::parse_number(const std::string& text,
 }
 
 } // namespace fincore::cli
-

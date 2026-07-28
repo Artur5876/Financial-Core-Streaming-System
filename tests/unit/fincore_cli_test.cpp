@@ -43,6 +43,8 @@ namespace fincore
             int quote_write_calls{};
             int book_write_calls{};
             int connection_checks{};
+            int cache_read_calls{};
+            std::optional<Quote> cached_quote;
 
             std::vector<std::string> requested_symbols;
             std::vector<std::string> quote_write_symbols;
@@ -79,6 +81,12 @@ namespace fincore
                 [&backend] {
                     ++backend.connection_checks;
                     return backend.connected;
+            };
+
+            services.get_cached_quote =
+                [&backend](const Symbol&) {
+                    ++backend.cache_read_calls;
+                    return backend.cached_quote;
             };
 
             services.store_quote =
@@ -359,6 +367,25 @@ namespace fincore
             EXPECT_NE(
                 output.find("AlphaVantageClient cache"),
                 std::string::npos);
+        }
+
+        TEST(FinCoreCliTest, RedisCacheHitSkipsApiAndRefreshesDerivedData)
+        {
+            FakeBackend backend;
+            backend.cached_quote = make_quote("IBM", 101.0, 2'000);
+
+            const std::string output = run_cli(
+                backend,
+                "fetch ibm\nexit\n");
+
+            EXPECT_EQ(backend.cache_read_calls, 1);
+            EXPECT_EQ(backend.quote_calls, 0);
+            EXPECT_EQ(backend.quote_write_calls, 0);
+            EXPECT_EQ(backend.book_write_calls, 1);
+            EXPECT_NE(
+                output.find("[OK] IBM [Redis cache] quote_redis=cache-hit"),
+                std::string::npos);
+            EXPECT_NE(output.find("Redis cache         hit"), std::string::npos);
         }
 
         TEST(FinCoreCliTest, HandlesMissingApiQuote)

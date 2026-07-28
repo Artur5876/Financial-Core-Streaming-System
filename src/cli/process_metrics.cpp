@@ -205,6 +205,14 @@ void SessionStats::record(const OperationMetrics& metrics) {
         }
     }
 
+    if (metrics.redis_read_us) {
+        if (metrics.redis_cache_hit) {
+            ++redis_cache_hits_;
+        } else {
+            ++redis_cache_misses_;
+        }
+    }
+
     if (metrics.redis_quote_us) {
         if (metrics.redis_quote_stored) {
             ++redis_quote_successes_;
@@ -222,6 +230,7 @@ void SessionStats::record(const OperationMetrics& metrics) {
     }
 
     api_.add(metrics.api_us);
+    redis_read_.add(metrics.redis_read_us);
     if (metrics.api_us) {
         if (metrics.api_cached) {
             api_cached_.add(metrics.api_us);
@@ -247,6 +256,8 @@ void SessionStats::reset() {
     failures_ = 0;
     api_cache_hits_ = 0;
     api_cache_misses_ = 0;
+    redis_cache_hits_ = 0;
+    redis_cache_misses_ = 0;
     redis_quote_successes_ = 0;
     redis_quote_failures_ = 0;
     redis_book_successes_ = 0;
@@ -256,6 +267,7 @@ void SessionStats::reset() {
     last_current_rss_kb_ = 0;
     peak_rss_kb_ = 0;
     api_.clear();
+    redis_read_.clear();
     api_cached_.clear();
     api_external_.clear();
     redis_quote_.clear();
@@ -285,12 +297,15 @@ void SessionStats::print_summary(std::ostream& out) const {
         << cache_hit_rate << "%\n";
 
     out << "\nRedis\n"
+        << "  cache hits           " << redis_cache_hits_ << '\n'
+        << "  cache misses         " << redis_cache_misses_ << '\n'
         << "  quote writes ok      " << redis_quote_successes_ << '\n'
         << "  quote writes failed  " << redis_quote_failures_ << '\n'
         << "  book writes ok       " << redis_book_successes_ << '\n'
         << "  book writes failed   " << redis_book_failures_ << '\n';
 
     out << "\nLatency\n";
+    redis_read_.print(out, "Redis cache read");
     api_.print(out, "API get_quote");
     api_external_.print(out, "  API external");
     api_cached_.print(out, "  API cached");
@@ -325,6 +340,7 @@ void print_operation_metrics(std::ostream& out,
         << '\n';
 
     print_optional_duration(out, "API get_quote", metrics.api_us);
+    print_optional_duration(out, "Redis cache read", metrics.redis_read_us);
     print_optional_duration(out, "Redis quote write", metrics.redis_quote_us);
     print_optional_duration(out, "OrderBook rebuild", metrics.book_build_us);
     print_optional_duration(out, "Redis book write", metrics.redis_book_us);
@@ -342,6 +358,11 @@ void print_operation_metrics(std::ostream& out,
     if (metrics.api_us) {
         out << "  " << std::left << std::setw(20) << "API source"
             << (metrics.api_cached ? "AlphaVantageClient cache" : "external fetch")
+            << '\n';
+    }
+    if (metrics.redis_read_us) {
+        out << "  " << std::left << std::setw(20) << "Redis cache"
+            << (metrics.redis_cache_hit ? "hit" : "miss")
             << '\n';
     }
 
@@ -362,4 +383,3 @@ void print_operation_metrics(std::ostream& out,
 }
 
 } // namespace fincore::cli
-

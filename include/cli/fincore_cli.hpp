@@ -22,6 +22,7 @@ struct CliServices {
     std::function<bool()> last_was_cached;
 
     std::function<bool()> redis_is_connected;
+    std::function<std::optional<Quote>(const Symbol&)> get_cached_quote;
 
     std::function<bool(
         const Symbol&,

@@ -45,10 +45,12 @@ struct OperationMetrics {
     std::string symbol;
     bool success{false};
     bool api_cached{false};
+    bool redis_cache_hit{false};
     bool redis_quote_stored{false};
     bool redis_book_stored{false};
 
     std::optional<std::int64_t> api_us;
+    std::optional<std::int64_t> redis_read_us;
     std::optional<std::int64_t> redis_quote_us;
     std::optional<std::int64_t> book_build_us;
     std::optional<std::int64_t> redis_book_us;
@@ -84,6 +86,8 @@ private:
     std::uint64_t failures_{};
     std::uint64_t api_cache_hits_{};
     std::uint64_t api_cache_misses_{};
+    std::uint64_t redis_cache_hits_{};
+    std::uint64_t redis_cache_misses_{};
     std::uint64_t redis_quote_successes_{};
     std::uint64_t redis_quote_failures_{};
     std::uint64_t redis_book_successes_{};
@@ -95,6 +99,7 @@ private:
     std::int64_t peak_rss_kb_{};
 
     LatencySeries api_;
+    LatencySeries redis_read_;
     LatencySeries api_cached_;
     LatencySeries api_external_;
     LatencySeries redis_quote_;
@@ -109,4 +114,3 @@ void print_operation_metrics(std::ostream& out,
                              const OperationMetrics& metrics);
 
 } // namespace fincore::cli
-

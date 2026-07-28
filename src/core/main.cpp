@@ -25,6 +25,8 @@ int main() {
     const std::string av_api_key = env_or("AV_API_KEY", "demo");
     const std::string redis_host = env_or("REDIS_HOST", "127.0.0.1");
     const int redis_port = std::stoi(env_or("REDIS_PORT", "6379"));
+    const int redis_quote_ttl = std::stoi(
+        env_or("REDIS_QUOTE_TTL_SECONDS", "60"));
     const int poll_seconds = std::stoi(env_or("POLL_SECONDS", "60"));
 
     std::vector<std::string> symbols{
@@ -35,6 +37,7 @@ int main() {
 
     std::cout << "[FinCore] Starting Financial Core Streaming System\n"
               << "  Redis  : " << redis_host << ':' << redis_port << '\n'
+              << "  Cache  : Redis quote TTL " << redis_quote_ttl << "s\n"
               << "  AV key : " << av_api_key.substr(0, 4) << "****\n"
               << "  Poll   : default " << poll_seconds << "s\n";
 
@@ -45,7 +48,10 @@ int main() {
 
     std::unique_ptr<RedisClient> redis;
     try {
-        redis = std::make_unique<RedisClient>(redis_host, redis_port);
+        redis = std::make_unique<RedisClient>(
+            redis_host,
+            redis_port,
+            std::chrono::seconds{redis_quote_ttl});
     } catch (const std::exception& error) {
         std::cerr << "[FinCore] Cannot connect to Redis: "
                   << error.what() << '\n';
