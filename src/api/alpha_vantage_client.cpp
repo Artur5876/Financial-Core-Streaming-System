@@ -11,7 +11,7 @@ namespace fincore {
     //Called repeatedly by curl as data arrives;
     //Appends chunks to a std::string
 
-    static size_t curl_write_cb(const char* ptr, size_t nmemb, void* userdata) {
+    static size_t curl_write_cb(const char* ptr, size_t size, size_t nmemb, void* userdata) {
         auto* buf = static_cast<std::string*>(userdata);
         buf->append(ptr, nmemb);
         return nmemb;
