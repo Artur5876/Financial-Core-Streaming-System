@@ -230,6 +230,22 @@ target_link_libraries(test_redis_client
 
 gtest_discover_tests(test_redis_client)
 
+# Redis-backed integration tests. Tests skip cleanly when the configured Redis
+# instance is unavailable. Set REDIS_HOST/REDIS_PORT to override localhost:6379.
+add_executable(redis_client_integration_test
+    tests/integration/redis_client_integration_test.cpp
+)
+
+target_link_libraries(redis_client_integration_test
+    PRIVATE
+        redis_client
+        GTest::gtest_main
+)
+
+gtest_discover_tests(redis_client_integration_test
+    PROPERTIES LABELS integration
+)
+
 
 
 ## test_redis_client --  pure logic (uses the self-contained stub in the file)
