@@ -1,5 +1,7 @@
 #pragma once
 
+#include "domain/decimal.hpp"
+
 #include <chrono>
 #include <optional>
 #include <string>
@@ -41,11 +43,11 @@ namespace fincore::domain {
         std::string symbol;
         std::string source;
         Timestamp timestamp;
-        double price;
-        double open;
-        double high;
-        double low;
-        std::int64_t volume;
+        Decimal price;
+        Decimal open;
+        Decimal high;
+        Decimal low;
+        Decimal volume;
         std::optional<double> change_pct;
     };
 
@@ -54,8 +56,8 @@ namespace fincore::domain {
         std::string source;
         Timestamp timestamp;
         std::optional<std::string> trade_id;
-        double price;
-        double size;
+        Decimal price;
+        Decimal size;
         TradeSide side{TradeSide::unknown};
     };
 
@@ -63,11 +65,11 @@ namespace fincore::domain {
         std::string symbol;
         std::string source;
         Timestamp snapshot_time;
-        double best_bid;
-        double best_ask;
-        double imbalance;
-        std::int64_t total_bid_volume;
-        std::int64_t total_ask_volume;
+        Decimal best_bid;
+        Decimal best_ask;
+        Decimal imbalance;
+        Decimal total_bid_volume;
+        Decimal total_ask_volume;
     };
 
     struct TechnicalIndicator {
@@ -75,7 +77,7 @@ namespace fincore::domain {
         std::string source;
         std::string indicator_name;
         Timestamp timestamp;
-        double value;
+        Decimal value;
         std::string parameters_json{"{}"};
     };
 
