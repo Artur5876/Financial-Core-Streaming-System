@@ -105,6 +105,10 @@ CREATE TABLE fincore.ticks (
         CHECK (trade_id IS NULL OR btrim(trade_id) <> '')
 );
 
+CREATE UNIQUE INDEX ticks_trade_id_uq
+    ON fincore.ticks (source, symbol, trade_id)
+    WHERE trade_id IS NOT NULL;
+
 --Order_Book_SnapShots table
 CREATE TABLE fincore.order_book_snapshots (
     symbol         VARCHAR(16) NOT NULL,
@@ -133,11 +137,11 @@ CREATE TABLE fincore.order_book_snapshots (
         CHECK (total_bid_vol >= 0 AND total_ask_vol >= 0)
 );
 
-CREATE TABLE fincore.technical_indicatirs (
+CREATE TABLE fincore.technical_indicators (
     symbol          VARCHAR(16) NOT NULL,
     source          VARCHAR(20) NOT NULL,
     indicator_name  VARCHAR(32) NOT NULL,
-    timestamp       TIMESTAMPTZ NOT NULL
+    timestamp       TIMESTAMPTZ NOT NULL,
     value           NUMERIC(20,8) NOT NULL,
     parameters      JSONB NOT NULL DEFAULT '{}'::jsonb,
 

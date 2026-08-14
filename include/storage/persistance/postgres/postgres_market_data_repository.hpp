@@ -1,7 +1,7 @@
 #pragma once
 
 #include "storage/persistance/market_data_repository.hpp"
-#include "storage/persistance/postgres/postgres_market_data_repository.hpp"
+#include "storage/persistance/postgres/pg_connection.hpp"
 
 #include <memory>
 
@@ -21,7 +21,7 @@ namespace fincore::persistence::postgres {
             void upsert_instrument(const domain::Instrument& instrument) override;
             void upsert_data_source(const domain::DataSource& source) override;
 
-            InsertSummary insert_quote(std::span<const domain::Quote> quotes) override;
+            InsertSummary insert_quotes(std::span<const domain::Quote> quotes) override;
             InsertSummary insert_ticks(std::span<const domain::Tick> ticks) override;
             InsertSummary insert_order_book_snapshots(std::span<const domain::OrderBookSnapshot> snapshots) override;
             InsertSummary insert_technical_indicators(std::span<const domain::TechnicalIndicator> indicators) override;

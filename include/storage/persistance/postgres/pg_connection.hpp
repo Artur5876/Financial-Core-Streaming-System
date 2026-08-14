@@ -18,7 +18,7 @@ namespace fincore::persistence::postgres {
             [[nodiscard]] const std::string& sql_state() const noexcept { return sql_state_;}
         private:
             std::string sql_state_;
-    }
+    };
 
     //Connection Config Data selection
     struct ConnectionConfig {
@@ -28,30 +28,30 @@ namespace fincore::persistence::postgres {
         std::string user{"fincore_app"};
         std::string password; // will be configured doring runtime
         std::string application_name{"fincore-cpp"};
-        int connection_timeout_seconds{5};
+        int connect_timeout_seconds{5};
 
         [[nodiscard]] static ConnectionConfig from_environment();
     };
 
-    class PGResult final {
+    class PgResult final {
         public:
-            explicit PGResult(PGResult* result = nullptr) noexcept;
-            ~PGResult();
+            explicit PgResult(PGresult* result = nullptr) noexcept;
+            ~PgResult();
 
-            PGResult(const PGResult&) = delete;
-            PGResult operator=(const PGResult&) = delete;
+            PgResult(const PgResult&) = delete;
+            PgResult& operator=(const PgResult&) = delete;
 
-            PGResult(PGResult&& other) noexcept;
-            PGResult& operator=(PGResult&& other) noexcept;
+            PgResult(PgResult&& other) noexcept;
+            PgResult& operator=(PgResult&& other) noexcept;
 
-            [[nodiscard]] int row() const noexcept;
-            [[nodiscard]] int column() const noexcept;
+            [[nodiscard]] int rows() const noexcept;
+            [[nodiscard]] int columns() const noexcept;
             [[nodiscard]] bool is_null(int row, int column) const;
             [[nodiscard]] std::string_view value(int row, int column) const;
             [[nodiscard]] std::size_t affected_rows() const;
 
         private:
-            PGResult* result_{};
+            PGresult* result_{};
     };
 
     using SqlParameter = std::optional<std::string>;
@@ -62,13 +62,13 @@ namespace fincore::persistence::postgres {
             ~PgConnection();
 
             PgConnection(const PgConnection&) = delete;
-            PgConnection operator=(const PgConnection&) = delete;
+            PgConnection& operator=(const PgConnection&) = delete;
 
             PgConnection(PgConnection&& other) noexcept;
             PgConnection& operator=(PgConnection&& other) noexcept;
 
-            [[nodiscard]] PGResult execute(std::string_view sql);
-            [[nodiscard]] PGResult execute_params(
+            [[nodiscard]] PgResult execute(std::string_view sql);
+            [[nodiscard]] PgResult execute_params(
                     std::string_view sql,
                     const std::vector<SqlParameter>& parameters);
 
@@ -77,7 +77,7 @@ namespace fincore::persistence::postgres {
                         std::string_view sql,
                         int parameter_count);
 
-            [[nodiscard]] PGResult execute_prepare(
+            [[nodiscard]] PgResult execute_prepared(
                 std::string_view name,
                 const std::vector<SqlParameter>& parameters);
 
@@ -85,7 +85,7 @@ namespace fincore::persistence::postgres {
 
         private:
             void close() noexcept;
-            [[nodiscard]] PGResult check_result(PGResult* result) const;
+            [[nodiscard]] PgResult check_result(PGresult* result) const;
 
             PGconn* connection_{};
     };
@@ -96,7 +96,7 @@ namespace fincore::persistence::postgres {
             ~PgTransaction();
 
             PgTransaction(const PgTransaction&) = delete;
-            PgTransaction operator=(const PgTransaction&) = delete;
+            PgTransaction& operator=(const PgTransaction&) = delete;
 
             void commit();
 

@@ -1,7 +1,10 @@
 #pragma once
 
-#include <span>
+#include "domain/market_data.hpp"
+
+#include <cstddef>
 #include <optional>
+#include <span>
 #include <string_view>
 
 
@@ -24,7 +27,7 @@ namespace fincore::persistence {
             virtual ~MarketDataRepository() = default;
 
             virtual void upsert_instrument(const domain::Instrument& instrument) = 0;
-            virtual void upsert_data_source(const domain::Data_Source& source) = 0;
+            virtual void upsert_data_source(const domain::DataSource& source) = 0;
 
             virtual InsertSummary insert_quotes(std::span<const domain::Quote> quote) = 0;
             virtual InsertSummary insert_ticks(std::span<const domain::Tick> ticks) = 0;

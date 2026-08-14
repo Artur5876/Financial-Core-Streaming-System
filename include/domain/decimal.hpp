@@ -1,7 +1,14 @@
+#pragma once
+
+#include <compare>
 #include <cstdint>
 #include <string>
+#include <string_view>
+
+namespace fincore::domain {
 
 class Decimal final {
+public:
     //THe scale will determine the actual number of fractional digits;
     //8 fractional digits
     static constexpr std::int64_t scale = 100'000'000;
@@ -20,7 +27,7 @@ class Decimal final {
         return Decimal(raw);
     }
 
-    [[nodiscard]] static Decimal from_string();
+    [[nodiscard]] static Decimal from_string(std::string_view value);
 
     [[nodiscard]] std::string to_string() const;
 
@@ -31,9 +38,11 @@ class Decimal final {
     //C++20 feacha (three way comparison operator)
     auto operator<=>(const Decimal&) const = default;
 
-    private:
+private:
         explicit constexpr Decimal(std::int64_t raw) noexcept
             : raw_(raw) {}
 
         std::int64_t raw_{};
 };
+
+} // namespace fincore::domain

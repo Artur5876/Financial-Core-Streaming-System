@@ -3,8 +3,10 @@
 #include "domain/decimal.hpp"
 
 #include <chrono>
+#include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace fincore::domain {
     using Timestamp = std::chrono::system_clock::time_point;
@@ -48,7 +50,7 @@ namespace fincore::domain {
         Decimal high;
         Decimal low;
         Decimal volume;
-        std::optional<double> change_pct;
+        std::optional<Decimal> change_pct;
     };
 
     struct Tick {
