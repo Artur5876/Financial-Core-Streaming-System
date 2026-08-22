@@ -33,12 +33,16 @@ namespace fincore::persistence::postgres {
         [[nodiscard]] static ConnectionConfig from_environment();
     };
 
+    //RAII for PGresult
+    //libpq return raw PGresult* values that must be released using PQclear
     class PgResult final {
         public:
             explicit PgResult(PGresult* result = nullptr) noexcept;
             ~PgResult();
 
+            //copying is disabled
             PgResult(const PgResult&) = delete;
+            // Moving is disabled
             PgResult& operator=(const PgResult&) = delete;
 
             PgResult(PgResult&& other) noexcept;
@@ -100,7 +104,7 @@ namespace fincore::persistence::postgres {
 
             void commit();
 
-        private:
+       private:
             PgConnection* connection_{};
             bool active_{true};
     };

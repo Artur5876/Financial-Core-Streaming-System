@@ -4,7 +4,9 @@
 
 CMake requires PostgreSQL and builds `postgres_persistence` from the connection and repository sources. The library links `fincore_domain` and `PostgreSQL::PostgreSQL`.
 
-The main `fincore_app` target does not currently link `postgres_persistence`, so the adapter is a library component rather than an active application write path.
+`fincore_app` links `postgres_persistence`; its `postgres` command mode exposes
+repository writes and latest-quote reads. Running it without arguments retains
+the interactive Redis/API workflow.
 
 ## Runtime configuration
 
@@ -26,7 +28,7 @@ The timeout parser rejects empty-invalid, non-numeric, zero, and negative explic
 
 1. Start a PostgreSQL;
 2. Create the `fincore` database or connect with sufficient privileges.
-3. Apply `scripts/migrations/init_db.sql` after resolving the schema gaps.
+3. Apply `migration/schema.sql`.
 4. Provide credentials through `FINCORE_DB_*` environment variables.
 5. Construct `ConnectionConfig`, then `PostgresMarketDataRepository`.
 6. Upsert referenced instruments and data sources before inserting time-series rows.

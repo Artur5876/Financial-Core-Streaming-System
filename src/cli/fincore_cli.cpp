@@ -1,4 +1,5 @@
 #include "cli/fincore_cli.hpp"
+#include "cli/postgres_cli.hpp"
 
 #include <algorithm>
 #include <cctype>

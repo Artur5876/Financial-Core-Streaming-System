@@ -145,6 +145,13 @@ target_link_libraries (fincore_cli
         process_metrics
 )
 
+# One-shot PostgreSQL administration/ingestion command layer.
+add_library(postgres_cli STATIC
+    src/cli/postgres_cli.cpp
+)
+target_include_directories(postgres_cli PUBLIC ${FINCORE_INCLUDE_DIR})
+target_link_libraries(postgres_cli PUBLIC fincore_domain)
+
 # Main executable file
 add_executable(fincore_app
         src/core/main.cpp
@@ -153,6 +160,8 @@ add_executable(fincore_app
 target_link_libraries(fincore_app
         PRIVATE
             fincore_cli
+            postgres_cli
+            postgres_persistence
 )
 
 
@@ -233,6 +242,16 @@ target_link_libraries(fincore_cli_test
 )
 
 gtest_discover_tests(fincore_cli_test)
+
+add_executable(postgres_cli_test
+    tests/unit/postgres_cli_test.cpp
+)
+target_link_libraries(postgres_cli_test
+    PRIVATE
+        postgres_cli
+        GTest::gtest_main
+)
+gtest_discover_tests(postgres_cli_test)
 
 
 #test alpha_vantage

@@ -274,6 +274,7 @@ void PgConnection::close() noexcept {
 
 PgTransaction::PgTransaction(PgConnection& connection) : connection_(&connection) {
     const auto result = connection_->execute("BEGIN");
+    // Compiler will ignore 'result' variable(no warning)
     (void)result;
 }
 
@@ -283,7 +284,7 @@ PgTransaction::~PgTransaction() {
             const auto result = connection_->execute("ROLLBACK");
             (void)result;
         } catch (...) {
-            // Destructors must not throw. The original operation's exception wins.
+            // Destructors must not throw. The original operations exception wins.
         }
     }
 }
@@ -292,6 +293,9 @@ void PgTransaction::commit() {
     if (!active_ || connection_ == nullptr) {
         throw std::logic_error("transaction is no longer active");
     }
+
+    //IF connection is active then we are going commit all changes from query
+    // Transaction g
     const auto result = connection_->execute("COMMIT");
     (void)result;
     active_ = false;

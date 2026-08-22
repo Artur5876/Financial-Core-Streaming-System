@@ -1,6 +1,8 @@
 #include "api/alpha_vantage_client.hpp"
 #include "cli/fincore_cli.hpp"
+#include "cli/postgres_cli.hpp"
 #include "storage/redis_client.hpp"
+#include "storage/persistance/postgres/postgres_market_data_repository.hpp"
 
 #include <chrono>
 #include <cstdlib>
@@ -19,9 +21,49 @@ namespace {
         return value ? std::string{value} : std::move(fallback);
     }
 
+    int run_postgres_cli(int argc, char* argv[]) {
+        std::vector<std::string> arguments;
+        arguments.reserve(argc > 2 ? static_cast<std::size_t>(argc - 2) : 0);
+        for (int i = 2; i < argc; ++i) {
+            arguments.emplace_back(argv[i]);
+        }
+
+        // Help must remain available even when PostgreSQL is not running.
+        if (arguments.empty() || arguments[0] == "help" ||
+            arguments[0] == "--help" || arguments[0] == "-h") {
+            cli::PostgresCli::print_help(std::cout);
+            return 0;
+        }
+
+        try {
+            auto config = persistence::postgres::ConnectionConfig::from_environment();
+            persistence::postgres::PostgresMarketDataRepository repository{config};
+            cli::PostgresCli postgres_cli{repository, std::cout, std::cerr};
+            return postgres_cli.run(arguments);
+        } catch (const persistence::postgres::DatabaseError& error) {
+            std::cerr << "database error";
+            if (!error.sql_state().empty()) {
+                std::cerr << " [SQLSTATE " << error.sql_state() << ']';
+            }
+            std::cerr << ": " << error.what() << '\n';
+            return 1;
+        } catch (const std::exception& error) {
+            std::cerr << "error: " << error.what() << '\n';
+            return 2;
+        }
+    }
+
 } // namespace
 
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc > 1) {
+        if (std::string_view{argv[1]} == "postgres") {
+            return run_postgres_cli(argc, argv);
+        }
+        std::cerr << "usage: fincore_app [postgres COMMAND [ARGUMENTS]]\n";
+        return 2;
+    }
+
     const std::string av_api_key = env_or("AV_API_KEY", "demo");
     const std::string redis_host = env_or("REDIS_HOST", "127.0.0.1");
     const int redis_port = std::stoi(env_or("REDIS_PORT", "6379"));
