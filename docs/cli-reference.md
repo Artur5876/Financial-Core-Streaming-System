@@ -86,3 +86,19 @@ arguments accept `now` or UTC RFC3339 in the form
 `YYYY-MM-DDTHH:MM:SS[.ffffff]Z`. Inserts report attempted, inserted, and
 duplicate counts. A missing latest quote returns exit status 3; usage errors
 return 2 and connection/database errors return 1.
+
+## Combined Redis and PostgreSQL ingestion
+
+Running `./build/fincore_app` without arguments attempts to connect to both
+Redis and PostgreSQL. The interactive `fetch`, `watch`, and `poll` workflows use Redis as
+the low-latency quote/order-book cache and write the same quote plus derived
+snapshot to PostgreSQL for durable history. Startup upserts the configured
+symbols and the `ALPHA_VANTAGE` source before entering the prompt.
+
+A fetch is successful when its required Redis writes succeed and, when
+PostgreSQL is available, both PostgreSQL writes succeed. If PostgreSQL cannot
+initialize, it is reported as `disabled` and Redis/API operation continues.
+Re-inserting an existing PostgreSQL quote is treated as a successful
+idempotent operation. PostgreSQL and Redis do not share a distributed
+transaction, so a later storage failure cannot roll back an earlier write to
+the other system.

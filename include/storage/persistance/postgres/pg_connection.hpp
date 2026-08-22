@@ -23,10 +23,10 @@ namespace fincore::persistence::postgres {
     //Connection Config Data selection
     struct ConnectionConfig {
         std::string host{"127.0.0.1"};
-        std::string port{"5432"};
-        std::string database{"fincore"};
-        std::string user{"fincore_app"};
-        std::string password; // will be configured doring runtime
+        std::string port{"6379"};
+        std::string database{"mydb"};
+        std::string user{"StaticGhost"};
+        std::string password{"myStrongPasswd123"}; // will be configured doring runtime
         std::string application_name{"fincore-cpp"};
         int connect_timeout_seconds{5};
 

@@ -42,6 +42,8 @@ namespace fincore
             int quote_calls{};
             int quote_write_calls{};
             int book_write_calls{};
+            int postgres_quote_calls{};
+            int postgres_snapshot_calls{};
             int connection_checks{};
             int cache_read_calls{};
             std::optional<Quote> cached_quote;
@@ -105,6 +107,16 @@ namespace fincore
                     backend.last_asks = asks;
 
                     return backend.book_write_result;
+            };
+
+            services.persist_quote = [&backend](const Quote&) {
+                ++backend.postgres_quote_calls;
+                return true;
+            };
+            services.persist_snapshot = [&backend](const OrderBookSnapshot&,
+                                                   const std::string&) {
+                ++backend.postgres_snapshot_calls;
+                return true;
             };
             return services;
         }
@@ -296,6 +308,8 @@ namespace fincore
 
             EXPECT_EQ(backend.quote_write_calls, 1);
             EXPECT_EQ(backend.book_write_calls, 1);
+            EXPECT_EQ(backend.postgres_quote_calls, 1);
+            EXPECT_EQ(backend.postgres_snapshot_calls, 1);
 
             ASSERT_EQ(backend.last_bids.size(), 5);
             ASSERT_EQ(backend.last_asks.size(), 5);

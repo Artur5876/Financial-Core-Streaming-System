@@ -100,9 +100,47 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    std::unique_ptr<persistence::postgres::PostgresMarketDataRepository> postgres;
+    try {
+        auto database_config = persistence::postgres::ConnectionConfig::from_environment();
+        postgres = std::make_unique<persistence::postgres::PostgresMarketDataRepository>(
+            database_config);
+
+        postgres->upsert_data_source({
+            "ALPHA_VANTAGE",
+            "Alpha Vantage",
+            std::string{"https://www.alphavantage.co"},
+            true});
+        for (const auto& symbol : symbols) {
+            postgres->upsert_instrument({
+                symbol,
+                symbol,
+                domain::AssetClass::equity,
+                "UNKNOWN",
+                4,
+                true});
+        }
+
+        std::cout << "  PostgreSQL: " << database_config.host << ':'
+                  << database_config.port << '/' << database_config.database
+                  << " [connected]\n";
+    } catch (const persistence::postgres::DatabaseError& error) {
+        std::cerr << "[FinCore] PostgreSQL disabled";
+        if (!error.sql_state().empty()) {
+            std::cerr << " [SQLSTATE " << error.sql_state() << ']';
+        }
+        std::cerr << ": " << error.what() << '\n';
+        std::cerr << "[FinCore] Continuing with Redis and Alpha Vantage.\n";
+    } catch (const std::exception& error) {
+        std::cerr << "[FinCore] PostgreSQL disabled: invalid configuration: "
+                  << error.what() << '\n';
+        std::cerr << "[FinCore] Continuing with Redis and Alpha Vantage.\n";
+    }
+
     cli::FinCoreCli app{
         av_client,
         *redis,
+        postgres.get(),
         std::move(symbols),
         poll_seconds,
         std::cin,

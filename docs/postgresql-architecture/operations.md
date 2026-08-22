@@ -6,7 +6,8 @@ CMake requires PostgreSQL and builds `postgres_persistence` from the connection 
 
 `fincore_app` links `postgres_persistence`; its `postgres` command mode exposes
 repository writes and latest-quote reads. Running it without arguments retains
-the interactive Redis/API workflow.
+the interactive Redis/API workflow and also persists fetched quotes and derived
+order-book snapshots to PostgreSQL.
 
 ## Runtime configuration
 

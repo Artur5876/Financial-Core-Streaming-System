@@ -5,6 +5,7 @@
 #include "core/order_book.hpp"
 #include "core/types.hpp"
 #include "storage/redis_client.hpp"
+#include "storage/persistance/market_data_repository.hpp"
 
 #include <functional>
 #include <iosfwd>
@@ -32,6 +33,11 @@ struct CliServices {
         const Symbol&,
         const std::map<Price, Volume>&,
         const std::map<Price, Volume>&)> update_order_book;
+
+    // Optional durable-storage callbacks. Tests and Redis-only deployments may
+    // leave these empty.
+    std::function<bool(const Quote&)> persist_quote;
+    std::function<bool(const OrderBookSnapshot&, const std::string&)> persist_snapshot;
 };
 
 class FinCoreCli {
@@ -40,6 +46,7 @@ public:
     FinCoreCli(
         AlphaVantageClient& av_client,
         RedisClient& redis,
+        persistence::MarketDataRepository* postgres,
         std::vector<std::string> symbols,
         int default_poll_seconds,
         std::istream& in,

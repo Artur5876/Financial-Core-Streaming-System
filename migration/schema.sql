@@ -15,7 +15,7 @@ END;
 $$;
 
 -- Instruments table ---
-CREATE TABLE fincore.instruments (
+CREATE TABLE IF NOT EXISTS fincore.instruments (
     symbol                  VARCHAR(16) PRIMARY KEY,
     name                    VARCHAR(100) NOT NULL,
     asset_class             VARCHAR(20) NOT NULL,
@@ -36,13 +36,14 @@ CREATE TABLE fincore.instruments (
 );
 
 -- Trigger for instruments table to update by calling set_updated_at() function
-CREATE TRIGGER trg_instruments_updated_at()
+DROP TRIGGER IF EXISTS trg_instruments_updated_at ON fincore.instruments;
+CREATE TRIGGER trg_instruments_updated_at
 BEFORE UPDATE ON fincore.instruments
 FOR EACH ROW EXECUTE FUNCTION fincore.set_updated_at();
 
 
 -- Data_Sources table (Alpha_Vantage etc)
-CREATE TABLE fincore.data_sources (
+CREATE TABLE IF NOT EXISTS fincore.data_sources (
     code            VARCHAR(20) PRIMARY KEY,
     display_name    VARCHAR(60) NOT NULL,
     base_url        TEXT,
@@ -56,12 +57,13 @@ CREATE TABLE fincore.data_sources (
     CONSTRAINT data_sources_name_nonempty_ck CHECK (btrim(display_name) <> '')
 );
 
+DROP TRIGGER IF EXISTS trg_data_sources_updated_at ON fincore.data_sources;
 CREATE TRIGGER trg_data_sources_updated_at
 BEFORE UPDATE ON fincore.data_sources
 FOR EACH ROW EXECUTE FUNCTION fincore.set_updated_at();
 
 --Quotes Table
-CREATE TABLE fincore.quotes (
+CREATE TABLE IF NOT EXISTS fincore.quotes (
     symbol      VARCHAR(16) NOT NULL,
     source      VARCHAR(20) NOT NULL,
     timestamp   TIMESTAMPTZ NOT NULL,
@@ -85,7 +87,7 @@ CREATE TABLE fincore.quotes (
 
 
 --Ticks table
-CREATE TABLE fincore.ticks (
+CREATE TABLE IF NOT EXISTS fincore.ticks (
     symbol      VARCHAR(16) NOT NULL,
     source      VARCHAR(20) NOT NULL,
     timestamp   TIMESTAMPTZ NOT NULL,
@@ -105,12 +107,12 @@ CREATE TABLE fincore.ticks (
         CHECK (trade_id IS NULL OR btrim(trade_id) <> '')
 );
 
-CREATE UNIQUE INDEX ticks_trade_id_uq
+CREATE UNIQUE INDEX IF NOT EXISTS ticks_trade_id_uq
     ON fincore.ticks (source, symbol, trade_id)
     WHERE trade_id IS NOT NULL;
 
 --Order_Book_SnapShots table
-CREATE TABLE fincore.order_book_snapshots (
+CREATE TABLE IF NOT EXISTS fincore.order_book_snapshots (
     symbol         VARCHAR(16) NOT NULL,
     source         VARCHAR(20) NOT NULL,
     snapshot_time  TIMESTAMPTZ NOT NULL,
@@ -137,7 +139,7 @@ CREATE TABLE fincore.order_book_snapshots (
         CHECK (total_bid_vol >= 0 AND total_ask_vol >= 0)
 );
 
-CREATE TABLE fincore.technical_indicators (
+CREATE TABLE IF NOT EXISTS fincore.technical_indicators (
     symbol          VARCHAR(16) NOT NULL,
     source          VARCHAR(20) NOT NULL,
     indicator_name  VARCHAR(32) NOT NULL,

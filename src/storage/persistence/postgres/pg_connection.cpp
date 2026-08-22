@@ -79,7 +79,7 @@ ConnectionConfig ConnectionConfig::from_environment() {
     config.port = environment_or("FINCORE_DB_PORT", config.port);
     config.database = environment_or("FINCORE_DB_NAME", config.database);
     config.user = environment_or("FINCORE_DB_USER", config.user);
-    config.password = environment_or("FINCORE_DB_PASSWORD");
+    config.password = environment_or("FINCORE_DB_PASSWORD", config.password);
     config.application_name = environment_or("FINCORE_DB_APPLICATION_NAME",
                                              config.application_name);
     config.connect_timeout_seconds = environment_int_or(

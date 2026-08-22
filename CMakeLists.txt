@@ -143,6 +143,7 @@ target_link_libraries (fincore_cli
         alpha_vantage_client
         redis_client
         process_metrics
+        fincore_domain
 )
 
 # One-shot PostgreSQL administration/ingestion command layer.
