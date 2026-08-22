@@ -61,3 +61,44 @@ page faults, and context switches.
 
 Metrics are observational development measurements, not a stable telemetry API.
 Short operations may show zero-microsecond stages because of timer resolution.
+
+## PostgreSQL CLI
+
+`./build/fincore_app postgres` selects the one-shot interface to the typed
+PostgreSQL repository from the main executable. It reads the `FINCORE_DB_*` variables documented in
+[`postgresql-architecture/operations.md`](postgresql-architecture/operations.md).
+Run `./build/fincore_app postgres --help` without a database connection to see
+the complete command syntax.
+
+Metadata referenced by market data must exist first:
+
+```sh
+./build/fincore_app postgres instrument AAPL "Apple Inc." EQUITY NASDAQ 4 true
+./build/fincore_app postgres source ALPHA_VANTAGE "Alpha Vantage" \
+  https://www.alphavantage.co true
+./build/fincore_app postgres quote AAPL ALPHA_VANTAGE now \
+  231.25 230.00 232.10 229.50 1200000 0.54
+./build/fincore_app postgres latest-quote AAPL ALPHA_VANTAGE
+```
+
+Use `-` for nullable values (`BASE_URL`, `CHANGE_PCT`, or `TRADE_ID`). Timestamp
+arguments accept `now` or UTC RFC3339 in the form
+`YYYY-MM-DDTHH:MM:SS[.ffffff]Z`. Inserts report attempted, inserted, and
+duplicate counts. A missing latest quote returns exit status 3; usage errors
+return 2 and connection/database errors return 1.
+
+## Combined Redis and PostgreSQL ingestion
+
+Running `./build/fincore_app` without arguments attempts to connect to both
+Redis and PostgreSQL. The interactive `fetch`, `watch`, and `poll` workflows use Redis as
+the low-latency quote/order-book cache and write the same quote plus derived
+snapshot to PostgreSQL for durable history. Startup upserts the configured
+symbols and the `ALPHA_VANTAGE` source before entering the prompt.
+
+A fetch is successful when its required Redis writes succeed and, when
+PostgreSQL is available, both PostgreSQL writes succeed. If PostgreSQL cannot
+initialize, it is reported as `disabled` and Redis/API operation continues.
+Re-inserting an existing PostgreSQL quote is treated as a successful
+idempotent operation. PostgreSQL and Redis do not share a distributed
+transaction, so a later storage failure cannot roll back an earlier write to
+the other system.

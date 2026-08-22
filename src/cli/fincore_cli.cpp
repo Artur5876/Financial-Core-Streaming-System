@@ -1,8 +1,12 @@
 #include "cli/fincore_cli.hpp"
 
+#include "domain/decimal.hpp"
+#include "cli/postgres_cli.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cmath>
 #include <iomanip>
 #include <map>
 #include <sstream>
@@ -15,6 +19,26 @@ namespace fincore::cli {
 namespace {
 
 using Clock = std::chrono::steady_clock;
+
+domain::Decimal decimal_from(double value) {
+    if (!std::isfinite(value)) {
+        throw std::invalid_argument("market value must be finite before PostgreSQL persistence");
+    }
+    std::ostringstream text;
+    text << std::fixed << std::setprecision(8) << value;
+    return domain::Decimal::from_string(text.str());
+}
+
+domain::Decimal decimal_from(Volume value) {
+    return domain::Decimal::from_string(std::to_string(value));
+}
+
+domain::Timestamp domain_timestamp(TimePoint value) {
+    if (value == TimePoint{}) {
+        return std::chrono::system_clock::now();
+    }
+    return domain::Timestamp{value.time_since_epoch()};
+}
 
 std::int64_t elapsed_us(Clock::time_point started) {
     return std::chrono::duration_cast<std::chrono::microseconds>(
@@ -101,14 +125,55 @@ CliServices make_cli_services(AlphaVantageClient& av_client, RedisClient& redis)
     return services;
 }
 
+CliServices make_cli_services(
+    AlphaVantageClient& av_client,
+    RedisClient& redis,
+    persistence::MarketDataRepository* postgres) {
+    auto services = make_cli_services(av_client, redis);
+    if (postgres == nullptr) {
+        return services;
+    }
+
+    services.persist_quote = [postgres](const Quote& quote) {
+        domain::Quote stored{
+            quote.symbol,
+            quote.source,
+            domain_timestamp(quote.timestamp),
+            decimal_from(quote.price),
+            decimal_from(quote.open),
+            decimal_from(quote.high),
+            decimal_from(quote.low),
+            decimal_from(quote.volume),
+            decimal_from(quote.change_pct)};
+        const auto result = postgres->insert_quotes({&stored, 1});
+        return result.inserted == 1 || result.duplicates() == 1;
+    };
+    services.persist_snapshot = [postgres](const OrderBookSnapshot& snapshot,
+                                           const std::string& source) {
+        domain::OrderBookSnapshot stored{
+            snapshot.symbol,
+            source,
+            domain_timestamp(snapshot.snapshot_time),
+            decimal_from(snapshot.best_bid),
+            decimal_from(snapshot.best_ask),
+            decimal_from(snapshot.imbalance),
+            decimal_from(snapshot.total_bid_vol),
+            decimal_from(snapshot.total_ask_vol)};
+        const auto result = postgres->insert_order_book_snapshots({&stored, 1});
+        return result.inserted == 1 || result.duplicates() == 1;
+    };
+    return services;
+}
+
 FinCoreCli::FinCoreCli(AlphaVantageClient& av_client,
                        RedisClient& redis,
+                       persistence::MarketDataRepository* postgres,
                        std::vector<std::string> symbols,
                        int default_poll_seconds,
                        std::istream& in,
                        std::ostream& out)
     : FinCoreCli(
-        make_cli_services(av_client, redis),
+        make_cli_services(av_client, redis, postgres),
         std::move(symbols),
         default_poll_seconds,
         in,
@@ -533,8 +598,17 @@ bool FinCoreCli::fetch_symbol(const std::string& raw_symbol,
 
         metrics.redis_book_us = elapsed_us(redis_book_started);
 
+        const auto snapshot = book.snapshot();
+        const bool postgres_enabled = static_cast<bool>(services_.persist_quote) &&
+                                      static_cast<bool>(services_.persist_snapshot);
+        const bool postgres_quote_stored = !postgres_enabled || services_.persist_quote(quote);
+        const bool postgres_snapshot_stored = !postgres_enabled ||
+            services_.persist_snapshot(snapshot, quote.source);
+
         metrics.success = metrics.redis_quote_stored
-                       && metrics.redis_book_stored;
+                       && metrics.redis_book_stored
+                       && postgres_quote_stored
+                       && postgres_snapshot_stored;
         metrics.total_us = elapsed_us(total_started);
         metrics.process = process_delta(process_before, read_process_snapshot());
         stats_.record(metrics);
@@ -550,11 +624,15 @@ bool FinCoreCli::fetch_symbol(const std::string& raw_symbol,
                     ? "cache-hit"
                     : (metrics.redis_quote_stored ? "ok" : "failed"))
              << " book_redis=" << (metrics.redis_book_stored ? "ok" : "failed")
+             << " quote_postgres=" << (!postgres_enabled ? "disabled" :
+                                           (postgres_quote_stored ? "ok" : "failed"))
+             << " book_postgres=" << (!postgres_enabled ? "disabled" :
+                                          (postgres_snapshot_stored ? "ok" : "failed"))
              << '\n';
 
         if (print_data) {
             print_quote(quote);
-            print_snapshot(book.snapshot());
+            print_snapshot(snapshot);
         }
 
         if (print_metrics) {

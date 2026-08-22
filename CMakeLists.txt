@@ -13,6 +13,7 @@ add_compile_options(
 
 # CURL
 find_package(CURL REQUIRED)
+find_package(PostgreSQL REQUIRED)
 
 find_package(hiredis CONFIG QUIET)
 
@@ -74,6 +75,26 @@ endif()
 # Shared include path used by all targets
 set(FINCORE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
+# Domain model and fixed-point decimal value type.
+add_library(fincore_domain STATIC
+    src/domain/decimal.cpp
+    src/domain/validation.cpp
+)
+target_include_directories(fincore_domain PUBLIC ${FINCORE_INCLUDE_DIR})
+
+# PostgreSQL adapter for the persistence port. One repository owns one
+# connection, so callers must create one instance per concurrent writer.
+add_library(postgres_persistence STATIC
+    src/storage/persistence/postgres/pg_connection.cpp
+    src/storage/persistence/postgres/postgres_market_data_repository.cpp
+)
+target_include_directories(postgres_persistence PUBLIC ${FINCORE_INCLUDE_DIR})
+target_link_libraries(postgres_persistence
+    PUBLIC
+        fincore_domain
+        PostgreSQL::PostgreSQL
+)
+
 # order_book — no external deps
 add_library(order_book STATIC
     src/core/order_book.cpp
@@ -122,7 +143,15 @@ target_link_libraries (fincore_cli
         alpha_vantage_client
         redis_client
         process_metrics
+        fincore_domain
 )
+
+# One-shot PostgreSQL administration/ingestion command layer.
+add_library(postgres_cli STATIC
+    src/cli/postgres_cli.cpp
+)
+target_include_directories(postgres_cli PUBLIC ${FINCORE_INCLUDE_DIR})
+target_link_libraries(postgres_cli PUBLIC fincore_domain)
 
 # Main executable file
 add_executable(fincore_app
@@ -132,6 +161,8 @@ add_executable(fincore_app
 target_link_libraries(fincore_app
         PRIVATE
             fincore_cli
+            postgres_cli
+            postgres_persistence
 )
 
 
@@ -160,6 +191,17 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 include(GoogleTest)
+
+# Domain tests
+add_executable(domain_model_test
+    tests/unit/domain_model_test.cpp
+)
+target_link_libraries(domain_model_test
+    PRIVATE
+        fincore_domain
+        GTest::gtest_main
+)
+gtest_discover_tests(domain_model_test)
 
 
 
@@ -201,6 +243,16 @@ target_link_libraries(fincore_cli_test
 )
 
 gtest_discover_tests(fincore_cli_test)
+
+add_executable(postgres_cli_test
+    tests/unit/postgres_cli_test.cpp
+)
+target_link_libraries(postgres_cli_test
+    PRIVATE
+        postgres_cli
+        GTest::gtest_main
+)
+gtest_discover_tests(postgres_cli_test)
 
 
 #test alpha_vantage
